@@ -41,6 +41,15 @@ class CNNTrainer:
             param_combinations = list(ParameterGrid(param_grid))
             total_combinations = len(param_combinations)
 
+            # Получаем количество эпох из параметров модели
+            epochs = model.epochs
+
+            # Инициализация прогресс-бара для всех комбинаций гиперпараметров и эпох
+            if use_progress_bar:
+                pbar = tqdm(
+                    total=epochs * total_combinations, desc=f"Training {model_name}"
+                )
+
             for params in param_combinations:
                 # Set parameters for the model
                 print(f"\nTraining {model_name} with parameters: {params}")
@@ -48,13 +57,6 @@ class CNNTrainer:
 
                 # Устанавливаем устройство для обучения
                 model.device = self.device
-
-                # Получаем количество эпох из параметров модели
-                epochs = model.epochs
-
-                # Инициализация прогресс-бара
-                if use_progress_bar:
-                    pbar = tqdm(total=epochs, desc=f"Training {model_name}")
 
                 def fold_callback(loss, epoch):
                     """
@@ -86,9 +88,9 @@ class CNNTrainer:
                     self.best_estimators[model_name] = model
                     self.best_params[model_name] = params
 
-                # Закрытие прогресс-бара после завершения
-                if use_progress_bar and pbar is not None:
-                    pbar.close()
+            # Закрытие прогресс-бара после завершения
+            if use_progress_bar and pbar is not None:
+                pbar.close()
 
         print(
             f"\nBest Model: {self.best_model_name} with score: {self.best_model_score}"
