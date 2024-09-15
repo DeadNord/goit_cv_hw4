@@ -10,6 +10,7 @@ from IPython.display import display
 import pandas as pd
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
+from torchsummary import summary
 
 
 class CNNEvaluator:
@@ -18,7 +19,7 @@ class CNNEvaluator:
 
     Methods
     -------
-    display_results(test_dataset, best_models, best_params, best_scores, best_model_name):
+    display_results(test_dataset, best_models, best_params, best_scores, best_model_name, help_text=False):
         Displays the evaluation metrics for the given model using the test dataset.
     predict_on_val(val_dataset, best_models, best_model_name):
         Runs predictions on an unlabeled validation dataset.
@@ -35,6 +36,7 @@ class CNNEvaluator:
         best_params,
         best_scores,
         best_model_name,
+        help_text=False,  # Added help_text parameter
     ):
         """
         Displays the evaluation metrics for the best models and their parameters using the test dataset.
@@ -104,7 +106,7 @@ class CNNEvaluator:
         print("\nOverall Best Model and Score (based on cross-validation score):")
         display(best_model_df)
 
-        if help_text:
+        if help_text:  # Display help text if the parameter is set to True
             print("\nMetric Explanations for Classification:")
             print(
                 "Accuracy: The ratio of correctly predicted instances to the total instances."
