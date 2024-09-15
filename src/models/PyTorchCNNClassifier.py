@@ -3,10 +3,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import numpy as np
-from sklearn.base import BaseEstimator, ClassifierMixin
 
 
-class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
+class PyTorchCNNClassifier:
     """
     CNN Classifier with customizable architecture and hyperparameters.
     """
@@ -15,8 +14,17 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         self,
         input_channels=3,
         num_classes=6,
-        conv_layers=[(32, 3), (64, 3), (128, 3)],
+        conv_layers=[
+            (32, 3, 1, 1),
+            (64, 3, 1, 1),
+            (128, 3, 1, 1),
+        ],  # out_channels, kernel_size, stride, padding
         hidden_sizes=[256, 128],
+        activation_fn="ReLU",  # Activation function as string
+        pool_fn="MaxPool2d",  # Pooling function as string
+        pool_kernel_size=2,
+        pool_stride=2,
+        pool_padding=0,
         lr=0.001,
         batch_size=32,
         epochs=100,
@@ -24,7 +32,6 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         optimizer_type="adam",
         criterion_type="cross_entropy",
         dropout_rate=0.5,
-        epochs_logger=True,
         random_state=None,
         fold_callback=None,
     ):
@@ -35,6 +42,11 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         self.num_classes = num_classes
         self.conv_layers = conv_layers
         self.hidden_sizes = hidden_sizes
+        self.activation_fn = self._get_activation_fn(activation_fn)
+        self.pool_fn = self._get_pool_fn(pool_fn)
+        self.pool_kernel_size = pool_kernel_size
+        self.pool_stride = pool_stride
+        self.pool_padding = pool_padding
         self.lr = lr
         self.batch_size = batch_size
         self.epochs = epochs
@@ -47,12 +59,34 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         self.criterion = None
         self.train_loss_history = []
         self.val_loss_history = []
-        self.epochs_logger = epochs_logger
         self.random_state = random_state
         self.fold_callback = fold_callback
 
         if random_state is not None:
             self._set_random_state(random_state)
+
+    def _get_activation_fn(self, activation_name):
+        """
+        Maps a string to an activation function.
+        """
+        activations = {
+            "ReLU": nn.ReLU,
+            "Sigmoid": nn.Sigmoid,
+            "Tanh": nn.Tanh,
+            "LeakyReLU": nn.LeakyReLU,
+        }
+        if activation_name not in activations:
+            raise ValueError(f"Unsupported activation function: {activation_name}")
+        return activations[activation_name]
+
+    def _get_pool_fn(self, pool_name):
+        """
+        Maps a string to a pooling function.
+        """
+        pools = {"MaxPool2d": nn.MaxPool2d, "AvgPool2d": nn.AvgPool2d}
+        if pool_name not in pools:
+            raise ValueError(f"Unsupported pooling function: {pool_name}")
+        return pools[pool_name]
 
     def _set_random_state(self, random_state):
         """
@@ -71,14 +105,24 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         input_channels = self.input_channels
 
         # Add convolutional layers
-        for out_channels, kernel_size in self.conv_layers:
+        for out_channels, kernel_size, stride, padding in self.conv_layers:
             layers.append(
                 nn.Conv2d(
-                    input_channels, out_channels, kernel_size=kernel_size, padding=1
+                    input_channels,
+                    out_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=padding,
                 )
             )
-            layers.append(nn.ReLU())
-            layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
+            layers.append(self.activation_fn())
+            layers.append(
+                self.pool_fn(
+                    kernel_size=self.pool_kernel_size,
+                    stride=self.pool_stride,
+                    padding=self.pool_padding,
+                )
+            )
             input_channels = out_channels
 
         layers.append(nn.Flatten())
@@ -90,7 +134,7 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         input_dim = flattened_size
         for hidden_size in self.hidden_sizes:
             layers.append(nn.Linear(input_dim, hidden_size))
-            layers.append(nn.ReLU())
+            layers.append(self.activation_fn())
             layers.append(nn.Dropout(p=self.dropout_rate))
             input_dim = hidden_size
 
@@ -119,8 +163,11 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         Calculate the flattened size of the input after passing through the convolutional layers.
         """
         size = 224  # Assuming the input image size is 224x224
-        for _, kernel_size in self.conv_layers:
-            size = size // 2  # Each MaxPool layer halves the size
+        for _, kernel_size, stride, _ in self.conv_layers:
+            size = (
+                size - kernel_size + 2
+            ) // stride + 1  # Adjust size based on conv layer params
+            size = size // self.pool_stride  # Adjust size after pooling
 
         flattened_size = size * size * self.conv_layers[-1][0]
         return flattened_size
@@ -129,6 +176,7 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         """
         Train the CNN model on the data. Handles both training and validation logic.
         """
+        # Подготовка данных
         train_loader = DataLoader(
             train_dataset, batch_size=self.batch_size, shuffle=True
         )
@@ -138,6 +186,7 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
             else None
         )
 
+        # Инициализация модели и оптимизатора
         self._initialize_model()
         self.model.train()
 
@@ -146,37 +195,52 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
             correct_preds = 0
             total_samples = 0
 
-            for inputs, targets in train_loader:
+            print(f"\nEpoch {epoch+1}/{self.epochs}")  # Лог текущей эпохи
+
+            for batch_idx, (inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
 
+                # Обнуление градиентов
                 self.optimizer.zero_grad()
+
+                # Прямой проход
                 outputs = self.model(inputs)
+
+                # Вычисление ошибки
                 loss = self.criterion(outputs, targets)
+                print(
+                    f"Batch {batch_idx+1}, Loss: {loss.item()}"
+                )  # Лог текущей ошибки на пакете
+
+                # Обратный проход и оптимизация
                 loss.backward()
                 self.optimizer.step()
 
+                # Накопление значения ошибки и правильных предсказаний
                 running_train_loss += loss.item()
                 _, preds = torch.max(outputs, 1)
                 correct_preds += (preds == targets).sum().item()
                 total_samples += targets.size(0)
 
+            # Расчет средней ошибки и точности
             train_loss = running_train_loss / len(train_loader)
             train_accuracy = correct_preds / total_samples
+
+            # Лог средней ошибки и точности за эпоху
+            print(f"Training Loss: {train_loss}, Training Accuracy: {train_accuracy}")
+
             self.train_loss_history.append(train_loss)
 
-            if self.epochs_logger and ((epoch + 1) % 10 == 0):
-                print(
-                    f"Epoch {epoch+1}/{self.epochs}, Training Loss: {train_loss}, Training Accuracy: {train_accuracy}"
-                )
-
-            # Call fold callback after each epoch
+            # Вызов callback, если он есть
             if self.fold_callback is not None:
                 self.fold_callback(train_loss, None)
 
+            # Оценка на валидационном наборе, если есть
             if val_loader is not None:
                 self._evaluate(val_loader)
 
-        # Return accuracy after training
+        # Возврат финальной точности после обучения
+        print(f"Final Training Accuracy: {train_accuracy}")  # Лог финальной точности
         return train_accuracy
 
     def _evaluate(self, val_loader):

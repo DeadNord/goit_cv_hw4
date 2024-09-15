@@ -23,7 +23,7 @@ class CNNTrainer:
         self,
         train_dataset,
         test_dataset,
-        pipelines,
+        models,
         param_grids,
         scoring="accuracy",
         verbose=0,
@@ -34,7 +34,7 @@ class CNNTrainer:
         """
         print(f"Training on device: {self.device}")
 
-        for model_name, pipeline in pipelines.items():
+        for model_name, model in models.items():
             param_grid = param_grids[model_name]
 
             # Generate all combinations of hyperparameters
@@ -47,34 +47,40 @@ class CNNTrainer:
                 pbar = None
 
             for params in param_combinations:
-                # Set parameters for the pipeline
-                pipeline.set_params(**params)
+                # Set parameters for the model
+                print(f"\nTraining {model_name} with parameters: {params}")
+                model.set_params(**params)  # Устанавливаем параметры модели
 
-                # Extract the classifier to manually set the device and train
-                classifier = pipeline.named_steps["classifier"]
-                classifier.device = self.device  # Set the device for the model
+                # Устанавливаем устройство для обучения
+                model.device = self.device
 
+                # Лог настроек модели
                 if verbose:
                     print(f"Training with parameters: {params}")
 
-                # Train the model, which internally handles the validation logic (e.g. loss plots)
-                accuracy = classifier.fit(train_dataset, test_dataset)
+                # Train the model and return accuracy
+                accuracy = model.fit(train_dataset, test_dataset)
 
                 if verbose:
-                    print(f"Validation Accuracy: {accuracy}")
+                    print(f"Validation Accuracy for {model_name}: {accuracy}")
 
                 # Store the best model and its parameters
                 if accuracy > self.best_model_score:
                     self.best_model_name = model_name
                     self.best_model_score = accuracy
-                    self.best_estimators[model_name] = classifier
+                    self.best_estimators[model_name] = model
                     self.best_params[model_name] = params
 
+                # Лог прогресса
                 if use_progress_bar:
                     pbar.update(1)
 
             if use_progress_bar:
                 pbar.close()
+
+        print(
+            f"\nBest Model: {self.best_model_name} with score: {self.best_model_score}"
+        )
 
     def help(self):
         """
@@ -89,21 +95,14 @@ class CNNTrainer:
         print("   Example:")
         print("       trainer = CNNTrainer(device='cuda')")
         print(
-            "\n2. Create a pipeline with a classifier, for example using PyTorchCNNClassifier."
+            "\n2. Create model objects and define the parameter grid for hyperparameter tuning."
+        )
+        print("   Example:")
+        print('       param_grid = { "lr": [0.001, 0.01], "epochs": [10, 20] }')
+        print(
+            "\n3. Call the `train` method with the training and test datasets, models, and parameter grid."
         )
         print("   Example:")
         print(
-            "       pipeline = Pipeline(steps=[('classifier', PyTorchCNNClassifier())])"
-        )
-        print("\n3. Define the parameter grid for hyperparameter tuning.")
-        print("   Example:")
-        print(
-            '       param_grid = { "classifier__lr": [0.001, 0.01], "classifier__epochs": [10, 20] }'
-        )
-        print(
-            "\n4. Call the `train` method with the training and test datasets, pipeline, and parameter grid."
-        )
-        print("   Example:")
-        print(
-            "       trainer.train(train_dataset, test_dataset, pipelines={'pytorch_classifier': pipeline}, param_grids={'pytorch_classifier': param_grid})"
+            "       trainer.train(train_dataset, test_dataset, models={'cnn_model': model}, param_grids={'cnn_model': param_grid})"
         )
