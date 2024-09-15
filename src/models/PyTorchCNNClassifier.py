@@ -174,6 +174,14 @@ class PyTorchCNNClassifier:
         flattened_size = size * size * self.conv_layers[-1][0]
         return flattened_size
 
+    def set_params(self, **params):
+        """
+        Update the model parameters dynamically.
+        """
+        for param, value in params.items():
+            setattr(self, param, value)
+        self._initialize_model()  # Re-initialize the model with updated parameters
+
     def fit(self, train_dataset, test_dataset=None):
         """
         Train the CNN model on the data. Handles both training and validation logic.
