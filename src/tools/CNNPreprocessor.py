@@ -62,7 +62,7 @@ class CNNPreprocessor:
         """
         transforms_list = []
 
-        # Проверяем настройки и добавляем трансформации по необходимости
+        # Добавляем трансформации для обрезки, переворотов и изменения размера
         if transform_settings.get("RandomResizedCrop", {}).get("enabled", False):
             size = transform_settings["RandomResizedCrop"].get("size", 224)
             transforms_list.append(transforms.RandomResizedCrop(size=size))
@@ -79,6 +79,10 @@ class CNNPreprocessor:
             size = transform_settings["CenterCrop"].get("size", 224)
             transforms_list.append(transforms.CenterCrop(size=size))
 
+        if transform_settings.get("ToTensor", {}).get("enabled", False):
+            transforms_list.append(transforms.ToTensor())
+
+        # Добавляем нормализацию
         if transform_settings.get("Normalize", {}).get("enabled", True):
             mean = transform_settings["Normalize"].get("mean", [0.485, 0.456, 0.406])
             std = transform_settings["Normalize"].get("std", [0.229, 0.224, 0.225])
@@ -190,6 +194,12 @@ class CNNPreprocessor:
                 "parameters": {
                     "mean": "(sequence): Sequence of means for each channel.",
                     "std": "(sequence): Sequence of standard deviations for each channel.",
+                },
+            },
+            "ToTensor": {
+                "description": "Converts a PIL Image or NumPy ndarray to a tensor.",
+                "parameters": {
+                    "None": "None",
                 },
             },
         }

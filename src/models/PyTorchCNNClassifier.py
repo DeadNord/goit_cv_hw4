@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import random
-import numpy as np
 from torch.utils.data import DataLoader
+import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
 
 
@@ -19,7 +18,7 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         conv_layers=[(32, 3), (64, 3), (128, 3)],
         hidden_sizes=[256, 128],
         lr=0.001,
-        batch_size=32,  # Batch size handled inside the model
+        batch_size=32,
         epochs=100,
         device="cpu",
         optimizer_type="adam",
@@ -27,7 +26,7 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         dropout_rate=0.5,
         epochs_logger=True,
         random_state=None,
-        fold_callback=None,  # Added callback
+        fold_callback=None,
     ):
         """
         Initialize the CNN classifier with the provided architecture and hyperparameters.
@@ -50,7 +49,7 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         self.val_loss_history = []
         self.epochs_logger = epochs_logger
         self.random_state = random_state
-        self.fold_callback = fold_callback  # Save callback
+        self.fold_callback = fold_callback
 
         if random_state is not None:
             self._set_random_state(random_state)
@@ -60,7 +59,6 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
         Set the random seed for reproducibility.
         """
         np.random.seed(random_state)
-        random.seed(random_state)
         torch.manual_seed(random_state)
         if self.device == "cuda":
             torch.cuda.manual_seed_all(random_state)
@@ -129,16 +127,8 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
 
     def fit(self, train_dataset, test_dataset=None):
         """
-        Train the CNN model on the data.
-
-        Parameters
-        ----------
-        train_dataset : Dataset
-            The training dataset (ImageFolder).
-        test_dataset : Dataset, optional
-            The test dataset (ImageFolder).
+        Train the CNN model on the data. Handles both training and validation logic.
         """
-        # Initialize DataLoader inside the model
         train_loader = DataLoader(
             train_dataset, batch_size=self.batch_size, shuffle=True
         )
@@ -153,6 +143,9 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
 
         for epoch in range(self.epochs):
             running_train_loss = 0.0
+            correct_preds = 0
+            total_samples = 0
+
             for inputs, targets in train_loader:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
 
@@ -163,21 +156,28 @@ class PyTorchCNNClassifier(BaseEstimator, ClassifierMixin):
                 self.optimizer.step()
 
                 running_train_loss += loss.item()
+                _, preds = torch.max(outputs, 1)
+                correct_preds += (preds == targets).sum().item()
+                total_samples += targets.size(0)
 
-            # Calculate and save training loss
             train_loss = running_train_loss / len(train_loader)
+            train_accuracy = correct_preds / total_samples
             self.train_loss_history.append(train_loss)
 
-            if self.epochs_logger & ((epoch + 1) % 10 == 0):
-                print(f"Epoch {epoch+1}/{self.epochs}, Training Loss: {train_loss}")
+            if self.epochs_logger and ((epoch + 1) % 10 == 0):
+                print(
+                    f"Epoch {epoch+1}/{self.epochs}, Training Loss: {train_loss}, Training Accuracy: {train_accuracy}"
+                )
 
             # Call fold callback after each epoch
             if self.fold_callback is not None:
                 self.fold_callback(train_loss, None)
 
-            # Validation phase (if validation data is provided)
             if val_loader is not None:
                 self._evaluate(val_loader)
+
+        # Return accuracy after training
+        return train_accuracy
 
     def _evaluate(self, val_loader):
         """
