@@ -176,11 +176,18 @@ class PyTorchCNNClassifier:
 
     def set_params(self, **params):
         """
-        Update the model parameters dynamically.
+        Set parameters for the classifier and reinitialize the model.
         """
         for param, value in params.items():
+            if param == "activation_fn":
+                value = self._get_activation_fn(
+                    value
+                )  # Преобразование строки в функцию
+            elif param == "pool_fn":
+                value = self._get_pool_fn(value)  # Преобразование строки в функцию
             setattr(self, param, value)
-        self._initialize_model()  # Re-initialize the model with updated parameters
+
+        self._initialize_model()
 
     def fit(self, train_dataset, test_dataset=None):
         """
