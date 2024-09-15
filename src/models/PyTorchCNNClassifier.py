@@ -34,6 +34,7 @@ class PyTorchCNNClassifier:
         dropout_rate=0.5,
         random_state=None,
         fold_callback=None,
+        epochs_logger=True,  # Added epochs_logger
     ):
         """
         Initialize the CNN classifier with the provided architecture and hyperparameters.
@@ -61,6 +62,7 @@ class PyTorchCNNClassifier:
         self.val_loss_history = []
         self.random_state = random_state
         self.fold_callback = fold_callback
+        self.epochs_logger = epochs_logger  # Store epochs_logger
 
         if random_state is not None:
             self._set_random_state(random_state)
@@ -195,7 +197,9 @@ class PyTorchCNNClassifier:
             correct_preds = 0
             total_samples = 0
 
-            print(f"\nEpoch {epoch+1}/{self.epochs}")  # Лог текущей эпохи
+            # Лог текущей эпохи
+            if self.epochs_logger:
+                print(f"\nEpoch {epoch+1}/{self.epochs}")
 
             for batch_idx, (inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
@@ -208,9 +212,11 @@ class PyTorchCNNClassifier:
 
                 # Вычисление ошибки
                 loss = self.criterion(outputs, targets)
-                print(
-                    f"Batch {batch_idx+1}, Loss: {loss.item()}"
-                )  # Лог текущей ошибки на пакете
+
+                if self.epochs_logger:
+                    print(
+                        f"Batch {batch_idx+1}, Loss: {loss.item()}"
+                    )  # Лог ошибки на пакете
 
                 # Обратный проход и оптимизация
                 loss.backward()
@@ -227,7 +233,10 @@ class PyTorchCNNClassifier:
             train_accuracy = correct_preds / total_samples
 
             # Лог средней ошибки и точности за эпоху
-            print(f"Training Loss: {train_loss}, Training Accuracy: {train_accuracy}")
+            if self.epochs_logger:
+                print(
+                    f"Training Loss: {train_loss}, Training Accuracy: {train_accuracy}"
+                )
 
             self.train_loss_history.append(train_loss)
 
@@ -240,7 +249,8 @@ class PyTorchCNNClassifier:
                 self._evaluate(val_loader)
 
         # Возврат финальной точности после обучения
-        print(f"Final Training Accuracy: {train_accuracy}")  # Лог финальной точности
+        if self.epochs_logger:
+            print(f"Final Training Accuracy: {train_accuracy}")
         return train_accuracy
 
     def _evaluate(self, val_loader):
@@ -267,7 +277,8 @@ class PyTorchCNNClassifier:
         val_accuracy = correct_preds / total_samples
         self.val_loss_history.append(val_loss)
 
-        print(f"Validation Loss: {val_loss}, Validation Accuracy: {val_accuracy}")
+        if self.epochs_logger:
+            print(f"Validation Loss: {val_loss}, Validation Accuracy: {val_accuracy}")
         self.model.train()
 
     def predict(self, test_loader):
