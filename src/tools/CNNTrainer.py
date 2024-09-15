@@ -39,16 +39,13 @@ class CNNTrainer:
 
             # Generate all combinations of hyperparameters
             param_combinations = list(ParameterGrid(param_grid))
-            total_combinations = len(param_combinations)
 
-            # Получаем количество эпох из параметров модели
-            epochs = model.epochs
+            # Рассчитываем общее количество итераций по каждой комбинации гиперпараметров и эпохам
+            total_iterations = sum([params["epochs"] for params in param_combinations])
 
             # Инициализация прогресс-бара для всех комбинаций гиперпараметров и эпох
             if use_progress_bar:
-                pbar = tqdm(
-                    total=epochs * total_combinations, desc=f"Training {model_name}"
-                )
+                pbar = tqdm(total=total_iterations, desc=f"Training {model_name}")
 
             for params in param_combinations:
                 # Set parameters for the model
@@ -57,6 +54,9 @@ class CNNTrainer:
 
                 # Устанавливаем устройство для обучения
                 model.device = self.device
+
+                # Получаем количество эпох для текущей комбинации параметров
+                epochs = params["epochs"]
 
                 def fold_callback(loss, epoch):
                     """
