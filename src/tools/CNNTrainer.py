@@ -34,18 +34,21 @@ class CNNTrainer:
         """
         print(f"Training on device: {self.device}")
 
+        # Calculate total iterations based on all hyperparameter combinations and epochs
+        total_iterations = 0
+        for model_name, model in models.items():
+            param_combinations = list(ParameterGrid(param_grids[model_name]))
+            total_iterations += sum([params["epochs"] for params in param_combinations])
+
+        # Initialize a single progress bar
+        if use_progress_bar:
+            pbar = tqdm(total=total_iterations, desc="Total Training Progress")
+
         for model_name, model in models.items():
             param_grid = param_grids[model_name]
 
             # Generate all combinations of hyperparameters
             param_combinations = list(ParameterGrid(param_grid))
-
-            # Рассчитываем общее количество итераций по каждой комбинации гиперпараметров и эпохам
-            total_iterations = sum([params["epochs"] for params in param_combinations])
-
-            # Инициализация прогресс-бара для всех комбинаций гиперпараметров и эпох
-            if use_progress_bar:
-                pbar = tqdm(total=total_iterations, desc=f"Training {model_name}")
 
             for params in param_combinations:
                 # Set parameters for the model
@@ -88,9 +91,9 @@ class CNNTrainer:
                     self.best_estimators[model_name] = model
                     self.best_params[model_name] = params
 
-            # Закрытие прогресс-бара после завершения
-            if use_progress_bar and pbar is not None:
-                pbar.close()
+        # Закрытие прогресс-бара после завершения
+        if use_progress_bar and pbar is not None:
+            pbar.close()
 
         print(
             f"\nBest Model: {self.best_model_name} with score: {self.best_model_score}"
