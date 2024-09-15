@@ -61,7 +61,7 @@ class PyTorchCNNClassifier:
         self.train_loss_history = []
         self.val_loss_history = []
         self.random_state = random_state
-        self.fold_callback = fold_callback
+        self.fold_callback = fold_callback  # Callback for progress reporting
         self.epochs_logger = epochs_logger  # Store epochs_logger
 
         if random_state is not None:
@@ -180,11 +180,9 @@ class PyTorchCNNClassifier:
         """
         for param, value in params.items():
             if param == "activation_fn":
-                value = self._get_activation_fn(
-                    value
-                )  # Преобразование строки в функцию
+                value = self._get_activation_fn(value)  # Convert string to function
             elif param == "pool_fn":
-                value = self._get_pool_fn(value)  # Преобразование строки в функцию
+                value = self._get_pool_fn(value)  # Convert string to function
             setattr(self, param, value)
 
         self._initialize_model()
@@ -228,11 +226,6 @@ class PyTorchCNNClassifier:
                 # Вычисление ошибки
                 loss = self.criterion(outputs, targets)
 
-                if self.epochs_logger:
-                    print(
-                        f"Batch {batch_idx+1}, Loss: {loss.item()}"
-                    )  # Лог ошибки на пакете
-
                 # Обратный проход и оптимизация
                 loss.backward()
                 self.optimizer.step()
@@ -255,9 +248,9 @@ class PyTorchCNNClassifier:
 
             self.train_loss_history.append(train_loss)
 
-            # Вызов callback, если он есть
+            # Вызов колбека для обновления прогресса в тренере
             if self.fold_callback is not None:
-                self.fold_callback(train_loss, None)
+                self.fold_callback(train_loss, epoch + 1)
 
             # Оценка на валидационном наборе, если есть
             if val_loader is not None:
@@ -295,18 +288,3 @@ class PyTorchCNNClassifier:
         if self.epochs_logger:
             print(f"Validation Loss: {val_loss}, Validation Accuracy: {val_accuracy}")
         self.model.train()
-
-    def predict(self, test_loader):
-        """
-        Make predictions on new data.
-        """
-        self.model.eval()
-        predictions = []
-        with torch.no_grad():
-            for inputs in test_loader:
-                inputs = inputs.to(self.device)
-                outputs = self.model(inputs)
-                _, preds = torch.max(outputs, 1)
-                predictions.extend(preds.cpu().numpy())
-
-        return predictions

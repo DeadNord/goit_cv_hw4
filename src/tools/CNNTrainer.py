@@ -15,7 +15,7 @@ class CNNTrainer:
         self.device = device
         self.best_estimators = {}
         self.best_params = {}
-        self.best_scores = {}
+        self.best_scores = {}  # Dictionary to store the best scores
         self.best_model_name = None
         self.best_model_score = float("-inf")
 
@@ -41,11 +41,6 @@ class CNNTrainer:
             param_combinations = list(ParameterGrid(param_grid))
             total_combinations = len(param_combinations)
 
-            if use_progress_bar:
-                pbar = tqdm(total=total_combinations, desc="Total Progress")
-            else:
-                pbar = None
-
             for params in param_combinations:
                 # Set parameters for the model
                 print(f"\nTraining {model_name} with parameters: {params}")
@@ -53,6 +48,23 @@ class CNNTrainer:
 
                 # Устанавливаем устройство для обучения
                 model.device = self.device
+
+                # Получаем количество эпох из параметров модели
+                epochs = model.epochs
+
+                # Инициализация прогресс-бара
+                if use_progress_bar:
+                    pbar = tqdm(total=epochs, desc=f"Training {model_name}")
+
+                def fold_callback(loss, epoch):
+                    """
+                    Колбек для обновления прогресса по эпохам в tqdm.
+                    """
+                    if use_progress_bar and pbar is not None:
+                        pbar.update(1)
+
+                # Устанавливаем колбек
+                model.fold_callback = fold_callback
 
                 # Лог настроек модели
                 if verbose:
@@ -64,6 +76,9 @@ class CNNTrainer:
                 if verbose:
                     print(f"Validation Accuracy for {model_name}: {accuracy}")
 
+                # Сохранение результата для каждой модели
+                self.best_scores[model_name] = accuracy
+
                 # Store the best model and its parameters
                 if accuracy > self.best_model_score:
                     self.best_model_name = model_name
@@ -71,12 +86,9 @@ class CNNTrainer:
                     self.best_estimators[model_name] = model
                     self.best_params[model_name] = params
 
-                # Лог прогресса
-                if use_progress_bar:
-                    pbar.update(1)
-
-            if use_progress_bar:
-                pbar.close()
+                # Закрытие прогресс-бара после завершения
+                if use_progress_bar and pbar is not None:
+                    pbar.close()
 
         print(
             f"\nBest Model: {self.best_model_name} with score: {self.best_model_score}"
