@@ -261,17 +261,20 @@ class PyTorchCNNClassifier:
             print(f"Final Training Accuracy: {train_accuracy}")
         return train_accuracy
 
-    def _evaluate(self, val_loader):
+    def _evaluate(self, dataset):
         """
-        Evaluate the model on the validation set.
+        Evaluate the model on the dataset, automatically dividing it into batches.
         """
+        # Используем DataLoader для обработки данных по батчам
+        data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
+
         self.model.eval()
         running_val_loss = 0.0
         correct_preds = 0
         total_samples = 0
 
         with torch.no_grad():
-            for inputs, targets in val_loader:
+            for inputs, targets in data_loader:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, targets)
@@ -281,10 +284,11 @@ class PyTorchCNNClassifier:
                 correct_preds += (preds == targets).sum().item()
                 total_samples += targets.size(0)
 
-        val_loss = running_val_loss / len(val_loader)
+        val_loss = running_val_loss / len(data_loader)
         val_accuracy = correct_preds / total_samples
         self.val_loss_history.append(val_loss)
 
         if self.epochs_logger:
             print(f"Validation Loss: {val_loss}, Validation Accuracy: {val_accuracy}")
+
         self.model.train()

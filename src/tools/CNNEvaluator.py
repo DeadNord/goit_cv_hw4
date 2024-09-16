@@ -9,7 +9,6 @@ from sklearn.metrics import (
 from IPython.display import display
 import pandas as pd
 import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader
 from torchsummary import summary
 
 
@@ -41,9 +40,6 @@ class CNNEvaluator:
         """
         Displays the evaluation metrics for the best models and their parameters using the test dataset.
         """
-        test_loader = DataLoader(
-            test_dataset, batch_size=len(test_dataset), shuffle=False
-        )  # Process the entire dataset at once
         results = []
 
         for model_name, cnn_model in best_models.items():
@@ -55,16 +51,16 @@ class CNNEvaluator:
             all_targets = []
 
             with torch.no_grad():
-                for inputs, targets in test_loader:
-                    inputs, targets = inputs.to(device), targets.to(device)
-                    outputs = cnn_model.model(inputs)
+                inputs, targets = test_dataset[:]
+                inputs, targets = inputs.to(device), targets.to(device)
+                outputs = cnn_model.model(inputs)
 
-                    preds = outputs.argmax(dim=1)
-                    all_preds.extend(preds.cpu().numpy())
-                    all_targets.extend(targets.cpu().numpy())
+                preds = outputs.argmax(dim=1)
+                all_preds.extend(preds.cpu().numpy())
+                all_targets.extend(targets.cpu().numpy())
 
-                    correct_preds += (preds == targets).sum().item()
-                    total_samples += targets.size(0)
+                correct_preds += (preds == targets).sum().item()
+                total_samples += targets.size(0)
 
             accuracy = correct_preds / total_samples
             balanced_acc = balanced_accuracy_score(all_targets, all_preds)
@@ -125,9 +121,6 @@ class CNNEvaluator:
         Runs predictions on an unlabeled validation dataset (without ground truth labels).
         Returns the predicted classes.
         """
-        val_loader = DataLoader(
-            val_dataset, batch_size=len(val_dataset), shuffle=False
-        )  # Process the entire dataset at once
         best_model = best_models[best_model_name]
         device = best_model.device
         best_model.model.eval()
@@ -135,11 +128,11 @@ class CNNEvaluator:
         all_preds = []
 
         with torch.no_grad():
-            for inputs in val_loader:
-                inputs = inputs.to(device)
-                outputs = best_model.model(inputs)
-                preds = outputs.argmax(dim=1)
-                all_preds.extend(preds.cpu().numpy())
+            inputs = val_dataset[:]
+            inputs = inputs.to(device)
+            outputs = best_model.model(inputs)
+            preds = outputs.argmax(dim=1)
+            all_preds.extend(preds.cpu().numpy())
 
         print(f"Predictions for validation dataset: {all_preds}")
         return all_preds
