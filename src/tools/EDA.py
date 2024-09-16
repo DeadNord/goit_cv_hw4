@@ -38,13 +38,12 @@ class EDA:
         num_images : int, optional
             Number of images to display (default is 6).
         """
-        # Get a batch of training data
+
         dataloader = torch.utils.data.DataLoader(
             self.dataset, batch_size=num_images, shuffle=True
         )
         inputs, classes = next(iter(dataloader))
 
-        # Make a grid from batch
         self.imshow(inputs, title=[self.class_names[x] for x in classes])
 
     def imshow(self, inputs, title=None):
@@ -58,15 +57,13 @@ class EDA:
         title : list of str, optional
             The titles (class names) for each image.
         """
-        # inputs имеют формат (B, C, H, W), преобразуем в (H, W, C)
+
         inputs = inputs.numpy()
 
         fig, axes = plt.subplots(1, len(inputs), figsize=(15, 5))
         for idx, img in enumerate(inputs):
-            img = img.transpose(1, 2, 0)  # Преобразуем из (C, H, W) в (H, W, C)
-            img = np.clip(
-                img, 0, 1
-            )  # Убедимся, что значения пикселей находятся в допустимых пределах
+            img = img.transpose(1, 2, 0)
+            img = np.clip(img, 0, 1)
             axes[idx].imshow(img)
             if title is not None:
                 axes[idx].set_title(title[idx])
@@ -80,7 +77,6 @@ class EDA:
         """
         images_per_class = {}
 
-        # Iterate through the dataset to collect one image per class
         for img, label in self.dataset:
             class_name = self.class_names[label]
             if class_name not in images_per_class:
@@ -88,11 +84,10 @@ class EDA:
             if len(images_per_class) == len(self.class_names):
                 break
 
-        # Plot the images
         plt.figure(figsize=(10, 10))
         for i, (class_name, img) in enumerate(images_per_class.items()):
             ax = plt.subplot(1, len(self.class_names), i + 1)
-            img = img.numpy().transpose(1, 2, 0)  # Преобразуем из (C, H, W) в (H, W, C)
+            img = img.numpy().transpose(1, 2, 0)
             ax.imshow(img)
             ax.set_title(class_name)
             ax.axis("off")
@@ -109,10 +104,9 @@ class EDA:
         batch_size : int, optional
             Number of images to display in the batch (default is 4).
         """
-        # Get a batch of data
+
         inputs, classes = next(iter(dataloader))
 
-        # Make a grid from batch
         self.imshow(inputs, title=[self.class_names[x] for x in classes])
 
     def plot_class_distribution(self):
@@ -142,10 +136,8 @@ class EDA:
         """
         img, label = self.dataset[idx]
 
-        # Convert to numpy and transpose (C, H, W) -> (H, W, C)
         img = img.numpy().transpose(1, 2, 0)
 
-        # Plot the image
         plt.figure(figsize=(5, 5))
         plt.imshow(img)
         plt.title(f"Class: {self.class_names[label]}")

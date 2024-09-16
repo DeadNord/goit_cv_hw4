@@ -46,12 +46,9 @@ class DataLoader:
         dataset : torchvision.datasets.ImageFolder
             Loaded dataset as an ImageFolder object with images transformed to tensors.
         """
-        # Применение трансформации для преобразования изображений в тензоры
-        transform = transforms.Compose(
-            [transforms.ToTensor()]  # Преобразует PIL изображение в тензор
-        )
 
-        # Используем указанный путь напрямую
+        transform = transforms.Compose([transforms.ToTensor()])
+
         dataset_path = self.path
 
         if not os.path.exists(dataset_path):
@@ -59,7 +56,6 @@ class DataLoader:
                 f"Directory for {self.dataset_type} dataset not found at {dataset_path}"
             )
 
-        # Load dataset using ImageFolder with the ToTensor transform
         dataset = datasets.ImageFolder(dataset_path, transform=transform)
 
         return dataset
@@ -73,27 +69,21 @@ class DataLoader:
         list
             List of image tensors.
         """
-        # Применение трансформации для преобразования изображений в тензоры
+
         transform = transforms.Compose([transforms.ToTensor()])
 
         images = []
 
-        # Проверка, что директория существует
         if not os.path.exists(self.path):
             raise FileNotFoundError(
                 f"Directory for unlabeled dataset not found at {self.path}"
             )
 
-        # Загрузка всех изображений из директории
         for file_name in os.listdir(self.path):
-            if file_name.endswith(
-                (".png", ".jpg", ".jpeg")
-            ):  # Поддерживаемые форматы изображений
+            if file_name.endswith((".png", ".jpg", ".jpeg")):
                 img_path = os.path.join(self.path, file_name)
-                img = Image.open(img_path).convert(
-                    "RGB"
-                )  # Открытие изображения и преобразование в RGB
-                img_tensor = transform(img)  # Преобразование в тензор
+                img = Image.open(img_path).convert("RGB")
+                img_tensor = transform(img)
                 images.append(img_tensor)
 
         return images

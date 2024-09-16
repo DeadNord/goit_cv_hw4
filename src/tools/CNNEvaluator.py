@@ -35,7 +35,7 @@ class CNNEvaluator:
         best_params,
         best_scores,
         best_model_name,
-        help_text=False,  # Added help_text parameter
+        help_text=False,
     ):
         """
         Displays the evaluation metrics for the best models and their parameters using the test dataset.
@@ -43,19 +43,16 @@ class CNNEvaluator:
         results = []
 
         for model_name, cnn_model in best_models.items():
-            # Вызов метода _evaluate модели для получения предсказаний и метрик
             all_preds, all_targets, val_loss, val_accuracy = cnn_model._evaluate(
                 test_dataset
             )
 
-            # Расчет метрик
             accuracy = accuracy_score(all_targets, all_preds)
             balanced_acc = balanced_accuracy_score(all_targets, all_preds)
             f1 = f1_score(all_targets, all_preds, average="weighted")
             precision = precision_score(all_targets, all_preds, average="weighted")
             recall = recall_score(all_targets, all_preds, average="weighted")
 
-            # Добавление метрик в результат
             results.append(
                 {
                     "Model": model_name,
@@ -67,7 +64,6 @@ class CNNEvaluator:
                 }
             )
 
-        # Создание таблиц с результатами и параметрами
         results_df = pd.DataFrame(results).sort_values(by="Accuracy", ascending=False)
         param_df = (
             pd.DataFrame(best_params).T.reset_index().rename(columns={"index": "Model"})
@@ -92,7 +88,6 @@ class CNNEvaluator:
         print("\nOverall Best Model and Score (based on cross-validation score):")
         display(best_model_df)
 
-        # Дополнительная информация о метриках, если включено
         if help_text:
             print("\nMetric Explanations for Classification:")
             print(
@@ -114,7 +109,6 @@ class CNNEvaluator:
         """
         best_model = best_models[best_model_name]
 
-        # Вызов метода predict модели для получения предсказанных классов
         all_preds = best_model.predict(val_dataset)
 
         print(f"Predictions for validation dataset: {all_preds}")
@@ -168,7 +162,6 @@ class CNNEvaluator:
         model = best_model.model
         if isinstance(model, torch.nn.Module):
             print(f"Visualizing the architecture of the model: {model_name}")
-            # Assuming input image size of 224x224 and 3 channels
             summary(model, input_size=(3, 224, 224))
         else:
             raise ValueError(

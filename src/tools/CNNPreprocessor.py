@@ -62,7 +62,9 @@ class CNNPreprocessor:
         """
         transforms_list = []
 
-        # Добавляем трансформации для обрезки, переворотов и изменения размера
+        if transform_settings.get("ToGray", {}).get("enabled", False):
+            transforms_list.append(transforms.Grayscale())
+
         if transform_settings.get("RandomResizedCrop", {}).get("enabled", False):
             size = transform_settings["RandomResizedCrop"].get("size", 224)
             transforms_list.append(transforms.RandomResizedCrop(size=size))
@@ -82,13 +84,11 @@ class CNNPreprocessor:
         if transform_settings.get("ToTensor", {}).get("enabled", False):
             transforms_list.append(transforms.ToTensor())
 
-        # Добавляем нормализацию
         if transform_settings.get("Normalize", {}).get("enabled", True):
             mean = transform_settings["Normalize"].get("mean", [0.485, 0.456, 0.406])
             std = transform_settings["Normalize"].get("std", [0.229, 0.224, 0.225])
             transforms_list.append(transforms.Normalize(mean=mean, std=std))
 
-        # Создаем пайплайн трансформаций
         return transforms.Compose(transforms_list)
 
     def transform_dataset(self, dataset, dataset_type="train"):
@@ -107,7 +107,6 @@ class CNNPreprocessor:
         torchvision.datasets.ImageFolder
             Transformed dataset.
         """
-        # Проверяем, были ли заданы настройки
         if dataset_type == "train" and not self.train_transform_settings:
             raise ValueError(
                 "Training transformation settings have not been set. Use 'set_transform_settings()' to provide settings."
@@ -117,7 +116,6 @@ class CNNPreprocessor:
                 "Test transformation settings have not been set. Use 'set_transform_settings()' to provide settings."
             )
 
-        # Определяем трансформации в зависимости от типа датасета
         if dataset_type == "train":
             transform = self.build_transforms(self.train_transform_settings)
         elif dataset_type == "test":
@@ -127,7 +125,6 @@ class CNNPreprocessor:
                 f"Invalid dataset_type: {dataset_type}. Choose from 'train' or 'test'."
             )
 
-        # Применяем трансформации непосредственно к объекту ImageFolder
         dataset.transform = transform
         return dataset
 
@@ -145,18 +142,15 @@ class CNNPreprocessor:
         list
             List of transformed images as tensors.
         """
-        # Проверяем, были ли заданы настройки для валидационного набора
         if not self.val_transform_settings:
             raise ValueError(
                 "Validation transformation settings have not been set. Use 'set_transform_settings()' to provide settings."
             )
 
-        # Построение пайплайна трансформаций для валидационных данных
         transform = self.build_transforms(self.val_transform_settings)
 
         transformed_images = []
         for img in images:
-            # Если изображение передано как путь, открыть его
             if isinstance(img, str):
                 img = Image.open(img).convert("RGB")
             transformed_img = transform(img)
@@ -169,8 +163,13 @@ class CNNPreprocessor:
         Prints the available transformations and their settings for train, val, and test datasets.
         Also includes descriptions of available transformations and their parameters.
         """
-        # Доступные трансформации и их параметры
         transform_docs = {
+            "ToGray": {
+                "description": "Converts the image to grayscale.",
+                "parameters": {
+                    "None": "No parameters. Converts to grayscale using luminance."
+                },
+            },
             "RandomResizedCrop": {
                 "description": "Randomly crops a part of the image and resizes it to the given size.",
                 "parameters": {"size": "(int): Target size of the crop."},
@@ -204,7 +203,6 @@ class CNNPreprocessor:
             },
         }
 
-        # Подготавливаем данные для таблицы
         table_data = []
         for transform_name, details in transform_docs.items():
             params = (
@@ -218,7 +216,6 @@ class CNNPreprocessor:
             )
             table_data.append([transform_name, details["description"], params])
 
-        # Печатаем таблицу с описанием и параметрами трансформаций
         print("Available transformations and their parameters:")
         print(
             tabulate(

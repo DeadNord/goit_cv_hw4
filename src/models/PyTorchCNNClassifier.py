@@ -18,10 +18,10 @@ class PyTorchCNNClassifier:
             (32, 3, 1, 1),
             (64, 3, 1, 1),
             (128, 3, 1, 1),
-        ],  # out_channels, kernel_size, stride, padding
+        ],
         hidden_sizes=[256, 128],
-        activation_fn="ReLU",  # Activation function as string
-        pool_fn="MaxPool2d",  # Pooling function as string
+        activation_fn="ReLU",
+        pool_fn="MaxPool2d",
         pool_kernel_size=2,
         pool_stride=2,
         pool_padding=0,
@@ -34,7 +34,7 @@ class PyTorchCNNClassifier:
         dropout_rate=0.5,
         random_state=None,
         fold_callback=None,
-        epochs_logger=True,  # Added epochs_logger
+        epochs_logger=True,
     ):
         """
         Initialize the CNN classifier with the provided architecture and hyperparameters.
@@ -61,8 +61,8 @@ class PyTorchCNNClassifier:
         self.train_loss_history = []
         self.val_loss_history = []
         self.random_state = random_state
-        self.fold_callback = fold_callback  # Callback for progress reporting
-        self.epochs_logger = epochs_logger  # Store epochs_logger
+        self.fold_callback = fold_callback
+        self.epochs_logger = epochs_logger
 
         if random_state is not None:
             self._set_random_state(random_state)
@@ -106,7 +106,6 @@ class PyTorchCNNClassifier:
         layers = []
         input_channels = self.input_channels
 
-        # Add convolutional layers
         for out_channels, kernel_size, stride, padding in self.conv_layers:
             layers.append(
                 nn.Conv2d(
@@ -129,10 +128,8 @@ class PyTorchCNNClassifier:
 
         layers.append(nn.Flatten())
 
-        # Calculate the flattened size for the fully connected layer
         flattened_size = self._calculate_flattened_size()
 
-        # Add fully connected layers
         input_dim = flattened_size
         for hidden_size in self.hidden_sizes:
             layers.append(nn.Linear(input_dim, hidden_size))
@@ -140,7 +137,6 @@ class PyTorchCNNClassifier:
             layers.append(nn.Dropout(p=self.dropout_rate))
             input_dim = hidden_size
 
-        # Add output layer
         layers.append(nn.Linear(input_dim, self.num_classes))
 
         self.model = nn.Sequential(*layers)
@@ -160,18 +156,29 @@ class PyTorchCNNClassifier:
         else:
             raise ValueError(f"Unsupported criterion type: {self.criterion_type}")
 
-    def _calculate_flattened_size(self):
+    def _calculate_flattened_size(self, input_shape=(3, 224, 224)):
         """
         Calculate the flattened size of the input after passing through the convolutional layers.
+        This method takes into account the convolutional layers, pooling layers, and padding.
         """
-        size = 224  # Assuming the input image size is 224x224
-        for _, kernel_size, stride, _ in self.conv_layers:
-            size = (
-                size - kernel_size + 2
-            ) // stride + 1  # Adjust size based on conv layer params
-            size = size // self.pool_stride  # Adjust size after pooling
+        channels, height, width = input_shape
 
-        flattened_size = size * size * self.conv_layers[-1][0]
+        for out_channels, kernel_size, stride, padding in self.conv_layers:
+            height = (height + 2 * padding - (kernel_size - 1) - 1) // stride + 1
+            width = (width + 2 * padding - (kernel_size - 1) - 1) // stride + 1
+
+            pool_kernel_size = self.pool_kernel_size
+            pool_stride = self.pool_stride
+            pool_padding = self.pool_padding
+
+            height = (
+                height + 2 * pool_padding - (pool_kernel_size - 1) - 1
+            ) // pool_stride + 1
+            width = (
+                width + 2 * pool_padding - (pool_kernel_size - 1) - 1
+            ) // pool_stride + 1
+
+        flattened_size = out_channels * height * width
         return flattened_size
 
     def set_params(self, **params):
@@ -180,9 +187,9 @@ class PyTorchCNNClassifier:
         """
         for param, value in params.items():
             if param == "activation_fn":
-                value = self._get_activation_fn(value)  # Convert string to function
+                value = self._get_activation_fn(value)
             elif param == "pool_fn":
-                value = self._get_pool_fn(value)  # Convert string to function
+                value = self._get_pool_fn(value)
             setattr(self, param, value)
 
         self._initialize_model()
@@ -200,7 +207,6 @@ class PyTorchCNNClassifier:
             else None
         )
 
-        # Инициализация модели и оптимизатора
         self._initialize_model()
         self.model.train()
 

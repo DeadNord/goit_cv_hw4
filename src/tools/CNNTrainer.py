@@ -15,7 +15,7 @@ class CNNTrainer:
         self.device = device
         self.best_estimators = {}
         self.best_params = {}
-        self.best_scores = {}  # Dictionary to store the best scores
+        self.best_scores = {}
         self.best_model_name = None
         self.best_model_score = float("-inf")
 
@@ -34,31 +34,26 @@ class CNNTrainer:
         """
         print(f"Training on device: {self.device}")
 
-        # Calculate total iterations based on all hyperparameter combinations and epochs
         total_iterations = 0
         for model_name, model in models.items():
             param_combinations = list(ParameterGrid(param_grids[model_name]))
             total_iterations += sum([params["epochs"] for params in param_combinations])
 
-        # Initialize a single progress bar
         if use_progress_bar:
             pbar = tqdm(total=total_iterations, desc="Total Training Progress")
 
         for model_name, model in models.items():
             param_grid = param_grids[model_name]
 
-            # Generate all combinations of hyperparameters
             param_combinations = list(ParameterGrid(param_grid))
 
             for params in param_combinations:
-                # Set parameters for the model
-                print(f"\nTraining {model_name} with parameters: {params}")
-                model.set_params(**params)  # Устанавливаем параметры модели
 
-                # Устанавливаем устройство для обучения
+                print(f"\nTraining {model_name} with parameters: {params}")
+                model.set_params(**params)
+
                 model.device = self.device
 
-                # Получаем количество эпох для текущей комбинации параметров
                 epochs = params["epochs"]
 
                 def fold_callback(loss, epoch):
@@ -68,30 +63,24 @@ class CNNTrainer:
                     if use_progress_bar and pbar is not None:
                         pbar.update(1)
 
-                # Устанавливаем колбек
                 model.fold_callback = fold_callback
 
-                # Лог настроек модели
                 if verbose:
                     print(f"Training with parameters: {params}")
 
-                # Train the model and return accuracy
                 accuracy = model.fit(train_dataset, test_dataset)
 
                 if verbose:
                     print(f"Validation Accuracy for {model_name}: {accuracy}")
 
-                # Сохранение результата для каждой модели
                 self.best_scores[model_name] = accuracy
 
-                # Store the best model and its parameters
                 if accuracy > self.best_model_score:
                     self.best_model_name = model_name
                     self.best_model_score = accuracy
                     self.best_estimators[model_name] = model
                     self.best_params[model_name] = params
 
-        # Закрытие прогресс-бара после завершения
         if use_progress_bar and pbar is not None:
             pbar.close()
 
