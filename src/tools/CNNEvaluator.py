@@ -43,31 +43,19 @@ class CNNEvaluator:
         results = []
 
         for model_name, cnn_model in best_models.items():
-            device = cnn_model.device
-            cnn_model.model.eval()
-            correct_preds = 0
-            total_samples = 0
-            all_preds = []
-            all_targets = []
+            # Вызов метода _evaluate модели для получения предсказаний и метрик
+            all_preds, all_targets, val_loss, val_accuracy = cnn_model._evaluate(
+                test_dataset
+            )
 
-            with torch.no_grad():
-                inputs, targets = test_dataset[:]
-                inputs, targets = inputs.to(device), targets.to(device)
-                outputs = cnn_model.model(inputs)
-
-                preds = outputs.argmax(dim=1)
-                all_preds.extend(preds.cpu().numpy())
-                all_targets.extend(targets.cpu().numpy())
-
-                correct_preds += (preds == targets).sum().item()
-                total_samples += targets.size(0)
-
-            accuracy = correct_preds / total_samples
+            # Расчет метрик
+            accuracy = accuracy_score(all_targets, all_preds)
             balanced_acc = balanced_accuracy_score(all_targets, all_preds)
             f1 = f1_score(all_targets, all_preds, average="weighted")
             precision = precision_score(all_targets, all_preds, average="weighted")
             recall = recall_score(all_targets, all_preds, average="weighted")
 
+            # Добавление метрик в результат
             results.append(
                 {
                     "Model": model_name,
@@ -79,6 +67,7 @@ class CNNEvaluator:
                 }
             )
 
+        # Создание таблиц с результатами и параметрами
         results_df = pd.DataFrame(results).sort_values(by="Accuracy", ascending=False)
         param_df = (
             pd.DataFrame(best_params).T.reset_index().rename(columns={"index": "Model"})
@@ -93,6 +82,7 @@ class CNNEvaluator:
             }
         )
 
+        # Вывод метрик
         print("Evaluation Metrics for Test Set:")
         display(results_df)
 
@@ -102,7 +92,8 @@ class CNNEvaluator:
         print("\nOverall Best Model and Score (based on cross-validation score):")
         display(best_model_df)
 
-        if help_text:  # Display help text if the parameter is set to True
+        # Дополнительная информация о метриках, если включено
+        if help_text:
             print("\nMetric Explanations for Classification:")
             print(
                 "Accuracy: The ratio of correctly predicted instances to the total instances."
@@ -122,17 +113,9 @@ class CNNEvaluator:
         Returns the predicted classes.
         """
         best_model = best_models[best_model_name]
-        device = best_model.device
-        best_model.model.eval()
 
-        all_preds = []
-
-        with torch.no_grad():
-            inputs = val_dataset[:]
-            inputs = inputs.to(device)
-            outputs = best_model.model(inputs)
-            preds = outputs.argmax(dim=1)
-            all_preds.extend(preds.cpu().numpy())
+        # Вызов метода predict модели для получения предсказанных классов
+        all_preds = best_model.predict(val_dataset)
 
         print(f"Predictions for validation dataset: {all_preds}")
         return all_preds

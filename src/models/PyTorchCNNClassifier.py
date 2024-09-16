@@ -191,7 +191,6 @@ class PyTorchCNNClassifier:
         """
         Train the CNN model on the data. Handles both training and validation logic.
         """
-        # Подготовка данных
         train_loader = DataLoader(
             train_dataset, batch_size=self.batch_size, shuffle=True
         )
@@ -210,37 +209,28 @@ class PyTorchCNNClassifier:
             correct_preds = 0
             total_samples = 0
 
-            # Лог текущей эпохи
             if self.epochs_logger:
                 print(f"\nEpoch {epoch+1}/{self.epochs}")
 
-            for batch_idx, (inputs, targets) in enumerate(train_loader):
+            for inputs, targets in train_loader:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
 
-                # Обнуление градиентов
                 self.optimizer.zero_grad()
 
-                # Прямой проход
                 outputs = self.model(inputs)
-
-                # Вычисление ошибки
                 loss = self.criterion(outputs, targets)
 
-                # Обратный проход и оптимизация
                 loss.backward()
                 self.optimizer.step()
 
-                # Накопление значения ошибки и правильных предсказаний
                 running_train_loss += loss.item()
                 _, preds = torch.max(outputs, 1)
                 correct_preds += (preds == targets).sum().item()
                 total_samples += targets.size(0)
 
-            # Расчет средней ошибки и точности
             train_loss = running_train_loss / len(train_loader)
             train_accuracy = correct_preds / total_samples
 
-            # Лог средней ошибки и точности за эпоху
             if self.epochs_logger:
                 print(
                     f"Training Loss: {train_loss}, Training Accuracy: {train_accuracy}"
@@ -248,30 +238,30 @@ class PyTorchCNNClassifier:
 
             self.train_loss_history.append(train_loss)
 
-            # Вызов колбека для обновления прогресса в тренере
-            if self.fold_callback is not None:
+            if self.fold_callback:
                 self.fold_callback(train_loss, epoch + 1)
 
-            # Оценка на валидационном наборе, если есть
             if val_loader is not None:
                 self._evaluate(val_loader)
 
-        # Возврат финальной точности после обучения
-        if self.epochs_logger:
-            print(f"Final Training Accuracy: {train_accuracy}")
         return train_accuracy
 
     def _evaluate(self, dataset):
         """
-        Evaluate the model on the dataset, automatically dividing it into batches.
+        Evaluate the model on the dataset, dividing it into batches.
         """
-        # Используем DataLoader для обработки данных по батчам
-        data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
+        if isinstance(dataset, DataLoader):
+            data_loader = dataset
+        else:
+            data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
 
         self.model.eval()
         running_val_loss = 0.0
         correct_preds = 0
         total_samples = 0
+
+        all_preds = []
+        all_targets = []
 
         with torch.no_grad():
             for inputs, targets in data_loader:
@@ -284,6 +274,9 @@ class PyTorchCNNClassifier:
                 correct_preds += (preds == targets).sum().item()
                 total_samples += targets.size(0)
 
+                all_preds.extend(preds.cpu().numpy())
+                all_targets.extend(targets.cpu().numpy())
+
         val_loss = running_val_loss / len(data_loader)
         val_accuracy = correct_preds / total_samples
         self.val_loss_history.append(val_loss)
@@ -292,3 +285,26 @@ class PyTorchCNNClassifier:
             print(f"Validation Loss: {val_loss}, Validation Accuracy: {val_accuracy}")
 
         self.model.train()
+
+        return all_preds, all_targets, val_loss, val_accuracy
+
+    def predict(self, dataset):
+        """
+        Predict labels for the dataset without targets.
+        """
+        if isinstance(dataset, DataLoader):
+            data_loader = dataset
+        else:
+            data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
+
+        self.model.eval()
+        all_preds = []
+
+        with torch.no_grad():
+            for inputs in data_loader:
+                inputs = inputs.to(self.device)
+                outputs = self.model(inputs)
+                preds = outputs.argmax(dim=1)
+                all_preds.extend(preds.cpu().numpy())
+
+        return all_preds
