@@ -65,6 +65,10 @@ class CNNPreprocessor:
         if transform_settings.get("ToGray", {}).get("enabled", False):
             transforms_list.append(transforms.Grayscale())
 
+        if transform_settings.get("VerticalFlip", {}).get("enabled", False):
+            p = transform_settings["VerticalFlip"].get("p", 0.5)
+            transforms_list.append(transforms.RandomVerticalFlip(p=p))
+
         if transform_settings.get("RandomResizedCrop", {}).get("enabled", False):
             size = transform_settings["RandomResizedCrop"].get("size", 224)
             transforms_list.append(transforms.RandomResizedCrop(size=size))
@@ -80,6 +84,29 @@ class CNNPreprocessor:
         if transform_settings.get("CenterCrop", {}).get("enabled", False):
             size = transform_settings["CenterCrop"].get("size", 224)
             transforms_list.append(transforms.CenterCrop(size=size))
+
+        # Цветовые преобразования
+        if transform_settings.get("ColorJitter", {}).get("enabled", False):
+            brightness = transform_settings["ColorJitter"].get("brightness", 0.5)
+            contrast = transform_settings["ColorJitter"].get("contrast", 0.5)
+            saturation = transform_settings["ColorJitter"].get("saturation", 0.5)
+            hue = transform_settings["ColorJitter"].get("hue", 0.5)
+            transforms_list.append(
+                transforms.ColorJitter(
+                    brightness=brightness,
+                    contrast=contrast,
+                    saturation=saturation,
+                    hue=hue,
+                )
+            )
+
+        # Шум и искажения
+        if transform_settings.get("GaussianBlur", {}).get("enabled", False):
+            kernel_size = transform_settings["GaussianBlur"].get("kernel_size", (5, 9))
+            sigma = transform_settings["GaussianBlur"].get("sigma", (0.1, 5))
+            transforms_list.append(
+                transforms.GaussianBlur(kernel_size=kernel_size, sigma=sigma)
+            )
 
         if transform_settings.get("ToTensor", {}).get("enabled", False):
             transforms_list.append(transforms.ToTensor())
@@ -180,6 +207,12 @@ class CNNPreprocessor:
                     "p": "(float): Probability of flipping the image. Default: 0.5"
                 },
             },
+            "VerticalFlip": {
+                "description": "Randomly flips the image vertically with a given probability.",
+                "parameters": {
+                    "p": "(float): Probability of flipping the image. Default: 0.5"
+                },
+            },
             "Resize": {
                 "description": "Resizes the image to the given size.",
                 "parameters": {"size": "(int or tuple): Target size of the image."},
@@ -187,6 +220,22 @@ class CNNPreprocessor:
             "CenterCrop": {
                 "description": "Crops the center part of the image to the given size.",
                 "parameters": {"size": "(int or tuple): Target size of the crop."},
+            },
+            "ColorJitter": {
+                "description": "Randomly changes the brightness, contrast, saturation, and hue of the image.",
+                "parameters": {
+                    "brightness": "(float): How much to jitter brightness.",
+                    "contrast": "(float): How much to jitter contrast.",
+                    "saturation": "(float): How much to jitter saturation.",
+                    "hue": "(float): How much to jitter hue.",
+                },
+            },
+            "GaussianBlur": {
+                "description": "Applies Gaussian blur to the image.",
+                "parameters": {
+                    "kernel_size": "(tuple): Kernel size for the Gaussian blur.",
+                    "sigma": "(tuple): Standard deviation for Gaussian kernel.",
+                },
             },
             "Normalize": {
                 "description": "Normalizes the image with given mean and standard deviation.",
