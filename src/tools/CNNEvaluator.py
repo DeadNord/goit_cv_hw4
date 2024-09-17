@@ -24,6 +24,8 @@ class CNNEvaluator:
         Runs predictions on an unlabeled validation dataset.
     plot_loss_history(best_models, best_model_name):
         Plots the training and validation loss history.
+    plot_accuracy_history(best_models, best_model_name):
+        Plots the training and validation accuracy history.
     visualize_pipeline(model_name, best_models):
         Visualizes the architecture of the best CNN model.
     """
@@ -78,7 +80,7 @@ class CNNEvaluator:
             }
         )
 
-        # Вывод метрик
+        # Display metrics
         print("Evaluation Metrics for Test Set:")
         display(results_df)
 
@@ -143,6 +145,36 @@ class CNNEvaluator:
             plt.show()
         else:
             print("The provided model does not have a loss history.")
+
+    def plot_accuracy_history(self, best_models, best_model_name):
+        """
+        Plots the training and validation accuracy history of the provided PyTorch model.
+
+        Parameters
+        ----------
+        best_models : dict
+            Dictionary of best models from GridSearchCV.
+        best_model_name : str
+            Name of the best model to plot the accuracy history.
+        """
+        best_model = best_models[best_model_name]
+
+        if hasattr(best_model, "train_accuracy_history") and hasattr(
+            best_model, "val_accuracy_history"
+        ):
+            plt.plot(best_model.train_accuracy_history, label="Training Accuracy")
+            plt.plot(
+                best_model.val_accuracy_history,
+                label="Validation Accuracy",
+                color="orange",
+            )
+            plt.title("Training vs Validation Accuracy per Epoch")
+            plt.xlabel("Epochs")
+            plt.ylabel("Accuracy")
+            plt.legend()
+            plt.show()
+        else:
+            print("The provided model does not have an accuracy history.")
 
     def visualize_pipeline(self, model_name, best_models):
         """

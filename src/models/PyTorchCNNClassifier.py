@@ -60,6 +60,8 @@ class PyTorchCNNClassifier:
         self.criterion = None
         self.train_loss_history = []
         self.val_loss_history = []
+        self.train_accuracy_history = []  # Add history for train accuracy
+        self.val_accuracy_history = []  # Add history for validation accuracy
         self.random_state = random_state
         self.fold_callback = fold_callback
         self.epochs_logger = epochs_logger
@@ -237,6 +239,9 @@ class PyTorchCNNClassifier:
             train_loss = running_train_loss / len(train_loader)
             train_accuracy = correct_preds / total_samples
 
+            # Log train accuracy history
+            self.train_accuracy_history.append(train_accuracy)
+
             if self.epochs_logger:
                 print(
                     f"Training Loss: {train_loss}, Training Accuracy: {train_accuracy}"
@@ -286,6 +291,7 @@ class PyTorchCNNClassifier:
         val_loss = running_val_loss / len(data_loader)
         val_accuracy = correct_preds / total_samples
         self.val_loss_history.append(val_loss)
+        self.val_accuracy_history.append(val_accuracy)
 
         if self.epochs_logger:
             print(f"Validation Loss: {val_loss}, Validation Accuracy: {val_accuracy}")
